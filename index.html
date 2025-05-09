@@ -31,20 +31,27 @@
             box-shadow: 0 0 20px rgba(0, 191, 255, 0.5);
             border-radius: 10px;
             background: transparent;
+            /* Ensure the canvas scales responsively */
+            width: 90vw;
+            height: 90vw;
+            max-width: 720px;
+            max-height: 720px;
         }
     </style>
 </head>
 <body>
     <div id="scoreDisplay">Score: 0 | High Score: 0</div>
-    <canvas id="gameCanvas" width="720" height="720"></canvas>
+    <canvas id="gameCanvas"></canvas>
 
     <script>
         // Constants for game dimensions
-        const GRID_SIZE = 32;
+        const BASE_GRID_SIZE = 32; // Base grid size for scaling
+        const BASE_CANVAS_SIZE = 720; // Base canvas size for scaling
+        let GRID_SIZE = BASE_GRID_SIZE;
+        let CELL_SIZE = 20;
+        let CANVAS_WIDTH = 720;
+        let CANVAS_HEIGHT = 720;
         const PADDING = 2;
-        const CELL_SIZE = 20;
-        const CANVAS_WIDTH = 720;
-        const CANVAS_HEIGHT = 720;
         const GAME_SPEED = 40;
         const TEXT_Y_POSITION = CANVAS_HEIGHT / 3;
         const PAUSE_DELAY = 250;
@@ -66,6 +73,24 @@
         let foodAnimationCounter = 0;
         let countdown = 2;
         let pauseTimeout = null;
+
+        // Variables for touch controls
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+
+        // Dynamically resize canvas based on screen size
+        function resizeCanvas() {
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            const size = Math.min(screenWidth, screenHeight) * 0.9; // 90% of the smaller dimension
+            CANVAS_WIDTH = CANVAS_HEIGHT = Math.min(size, BASE_CANVAS_SIZE);
+            CELL_SIZE = CANVAS_WIDTH / (GRID_SIZE + 2); // Adjust cell size based on new canvas size
+            canvas.width = CANVAS_WIDTH;
+            canvas.height = CANVAS_HEIGHT;
+            draw(); // Redraw the game with the new dimensions
+        }
 
         // Generate random food position
         function generateFoodPosition() {
@@ -439,14 +464,61 @@
             foodAnimationCounter = 0;
         }
 
-        // Initial draw after font load
+        // Add touch event listeners for swipe detection
+        function addTouchControls() {
+            canvas.addEventListener('touchstart', (event) => {
+                const touch = event.touches[0];
+                touchStartX = touch.clientX;
+                touchStartY = touch.clientY;
+            });
+
+            canvas.addEventListener('touchmove', (event) => {
+                const touch = event.touches[0];
+                touchEndX = touch.clientX;
+                touchEndY = touch.clientY;
+            });
+
+            canvas.addEventListener('touchend', () => {
+                handleSwipe();
+            });
+        }
+
+        // Handle swipe gestures
+        function handleSwipe() {
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                // Horizontal swipe
+                if (deltaX > 0 && direction.x !== -1) {
+                    pendingDirection = {x: 1, y: 0}; // Swipe right
+                } else if (deltaX < 0 && direction.x !== 1) {
+                    pendingDirection = {x: -1, y: 0}; // Swipe left
+                }
+            } else {
+                // Vertical swipe
+                if (deltaY > 0 && direction.y !== -1) {
+                    pendingDirection = {x: 0, y: 1}; // Swipe down
+                } else if (deltaY < 0 && direction.y !== 1) {
+                    pendingDirection = {x: 0, y: -1}; // Swipe up
+                }
+            }
+        }
+
+        // Detect if the device is mobile or tablet and add touch controls
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+            addTouchControls();
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', resizeCanvas);
+
+        // Initial setup
+        resizeCanvas();
         document.fonts.load('bold 60px "Madimi One"').then(() => draw()).catch((error) => {
             console.error('Font loading failed:', error);
             draw();
         });
-
-        // Ensure initial draw happens
-        draw();
     </script>
 </body>
 </html>
